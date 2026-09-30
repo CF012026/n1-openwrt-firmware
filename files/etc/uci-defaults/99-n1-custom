@@ -1,0 +1,38 @@
+#!/bin/sh
+# ============================================================
+# 99-n1-custom
+# 首次启动时自动执行一次，执行后自动删除。
+# 作用：斐讯 N1 的基础默认配置（管理地址 / 主机名 / NTP / 卸载开关）。
+#
+# 注意：按用户要求，不预置 lucky / easytier 私人数据 / MAC 绑定，
+#       全部保持默认，首次开机后在 LuCI 里自行配置。
+# ============================================================
+
+# ---------- 管理地址（N1 指定） ----------
+uci -q set network.lan.ipaddr='192.168.99.1'
+uci -q set network.lan.netmask='255.255.255.0'
+
+# ---------- 主机名 / 时区 / NTP ----------
+uci -q set system.@system[0].hostname='N1'
+uci -q set system.@system[0].timezone='CST-8'
+uci -q set system.@system[0].zonename='Asia/Shanghai'
+uci -q set system.@system[0].log_size='64'
+uci -q delete system.ntp.server 2>/dev/null
+uci -q add_list system.ntp.server='ntp.tencent.com'
+uci -q add_list system.ntp.server='ntp.aliyun.com'
+uci -q add_list system.ntp.server='cn.ntp.org.cn'
+
+# ---------- 关闭所有流量卸载，保障 daed 透明代理生效 ----------
+# 一旦开启卸载，被加速的连接会绕过内核协议栈走快速路径，
+# daed 挂在内核 eBPF 上的规则就抓不到这些流量，表现为
+# "代理装好了但部分网站不走代理"。
+# （N1 场景说明：镜像经 ophub 重打包后跑的是 ophub 预编译内核，
+#   其内核侧 flow offload 不在 fw4 管辖内，此处照旧关 fw4 侧即可。）
+uci -q set firewall.@defaults[0].flow_offloading='0'
+uci -q set firewall.@defaults[0].flow_offloading_hw='0'
+
+uci -q commit network
+uci -q commit system
+uci -q commit firewall
+
+exit 0
