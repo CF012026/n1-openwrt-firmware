@@ -27,7 +27,7 @@ env:
 
 jobs:
   repack:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       # ---------- 1. 下载来源 artifact ----------
       - name: 下载来源编译产物
