@@ -1,0 +1,65 @@
+name: 重打包 N1 直刷镜像（从已有 artifact 补跑 ophub remake）
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: '来源编译 run 的 ID（其 artifact 里含 armsr squashfs-combined-efi 镜像）'
+        required: true
+        type: string
+      artifact_name:
+        description: '来源 artifact 名称'
+        required: true
+        type: string
+      kernel_version:
+        description: '精确内核版本（须与固件 rootfs 一致，如 6.12.108）'
+        required: true
+        type: string
+        default: '6.12.108'
+      board:
+        description: 'ophub 板型'
+        required: true
+        type: string
+        default: 's905d'
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  repack:
+    runs-on: ubuntu-22.04
+    steps:
+      # ---------- 1. 下载来源 artifact ----------
+      - name: 下载来源编译产物
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifact
+
+      # ---------- 2. 解压 armsr 镜像 ----------
+      - name: 解压 armsr 镜像
+        run: |
+          cd artifact
+          gunzip -kf openwrt-armsr-armv8-generic-squashfs-combined-efi.img.gz
+          ls -lh openwrt-armsr-armv8-generic-squashfs-combined-efi.img
+
+      # ---------- 3. ophub 重打包为 N1 直刷镜像 ----------
+      - name: ophub remake
+        run: |
+          git clone -q --depth 1 https://github.com/ophub/amlogic-s9xxx-openwrt /tmp/ophub
+          cd /tmp/ophub
+          sudo ./remake -b ${{ inputs.board }} -k ${{ inputs.kernel_version }} \
+            "${GITHUB_WORKSPACE}/artifact/openwrt-armsr-armv8-generic-squashfs-combined-efi.img"
+          ls -lh /tmp/ophub/output/images/
+
+      # ---------- 4. 上传 ----------
+      - name: 上传 N1 直刷镜像
+        uses: actions/upload-artifact@v4
+        with:
+          name: N1-s905d-repack_${{ inputs.board }}_k${{ inputs.kernel_version }}
+          path: /tmp/ophub/output/images/*.img.gz
+          retention-days: 15
+          compression-level: 0
+          if-no-files-found: error
