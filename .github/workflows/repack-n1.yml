@@ -53,14 +53,15 @@ jobs:
           cp "${GITHUB_WORKSPACE}/artifact/openwrt-armsr-armv8-generic-rootfs.tar.gz" /tmp/ophub/openwrt-armsr/
           cd /tmp/ophub
           sudo ./remake -b ${{ inputs.board }} -k ${{ inputs.kernel_version }}
-          ls -lh /tmp/ophub/output/images/
+          echo "---- ophub 产物定位 ----"
+          find /tmp/ophub/openwrt -type f \( -name "*.img.gz" -o -name "*.img" \) -exec ls -lh {} \;
 
       # ---------- 4. 上传 ----------
       - name: 上传 N1 直刷镜像
         uses: actions/upload-artifact@v4
         with:
           name: N1-s905d-repack_${{ inputs.board }}_k${{ inputs.kernel_version }}
-          path: /tmp/ophub/output/images/*.img.gz
+          path: /tmp/ophub/openwrt/out/*.img.gz
           retention-days: 15
           compression-level: 0
           if-no-files-found: error
