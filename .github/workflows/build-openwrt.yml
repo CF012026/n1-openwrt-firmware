@@ -272,7 +272,10 @@ jobs:
         make -j$(($(nproc) + 1)) || make -j1 || make -j1 V=s
         echo "FIRMWARE=$PWD/bin/targets/armsr/armv8" >> $GITHUB_ENV
         # 提取 openwrt 内核版本，供 ophub 重打包匹配（如 6.12.108）
-        KVER="6.12$(grep -m1 'LINUX_VERSION-6.12' include/kernel-6.12 | awk '{print $3}')"
+        # 25.12 起版本文件移到 target/linux/generic/kernel-6.12 且只存后缀（如 ".112"）；兼容旧 include/kernel-6.12 全版本格式
+        KSUF=$(grep -m1 'LINUX_VERSION-6.12' target/linux/generic/kernel-6.12 2>/dev/null | awk -F'=' '{print $2}' | tr -d ' ')
+        KVER="6.12${KSUF}"
+        [[ "$KVER" == "6.12" ]] && KVER="6.12$(grep -m1 'LINUX_VERSION-6.12' include/kernel-6.12 2>/dev/null | awk '{print $3}')"
         echo "OPENWRT_KVER=$KVER" >> $GITHUB_ENV
         echo "openwrt 内核版本: $KVER"
 
@@ -315,8 +318,8 @@ jobs:
         cd /tmp/ophub
         # remake 依赖系统工具，脚本自带安装逻辑；-b 板型 s905d（N1），-k 内核版本必须与 openwrt kmods 严格一致
         if sudo ./remake -b s905d -k "$OPENWRT_KVER"; then
-          N1IMG=$(find /tmp/ophub/output -type f -name '*s905d*.img.gz' | head -1)
-          [ -n "$N1IMG" ] || N1IMG=$(find /tmp/ophub/output -type f -name '*.img.gz' | head -1)
+          N1IMG=$(find /tmp/ophub/openwrt/out -type f -name '*s905d*.img.gz' 2>/dev/null | head -1)
+          [ -n "$N1IMG" ] || N1IMG=$(find /tmp/ophub -type f -name '*.img.gz' 2>/dev/null | grep -v armsr | head -1)
           if [ -n "$N1IMG" ]; then
             cp "$N1IMG" /workdir/openwrt/bin/targets/armsr/armv8/
             echo "N1_IMAGE=$(basename $N1IMG)" >> $GITHUB_ENV
