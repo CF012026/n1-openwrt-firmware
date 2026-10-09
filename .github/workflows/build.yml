@@ -8,6 +8,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+
 # ==================== 环境变量 ====================
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
@@ -354,6 +357,22 @@ jobs:
         name: N1-s905d-${{ matrix.proxy }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
         retention-days: 30
+
+    # ---------- 14. 发布到 Releases（公开直链、永久保留）----------
+    - name: 发布到 Releases
+      if: ${{ success() }}
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: immortalwrt-${{ matrix.proxy }}-${{ env.FILE_DATE }}
+        name: N1-s905d ImmortalWrt ${{ matrix.proxy }} ${{ env.FILE_DATE }}
+        files: |
+          ${{ env.FIRMWARE }}/*s905d*.img.gz
+          ${{ env.FIRMWARE }}/*combined-efi*.img.gz
+        body: |
+          N1 (Amlogic S905D) ImmortalWrt 固件
+          - s905d img.gz: U盘直刷/eMMC 镜像（Etcher 直接写 .img.gz，无需解压）
+          - armsr combined-efi img.gz: armsr 备胎镜像
+          内置: daed / iStore 全家桶 / luci-app-dockermanager / nikki / passwall / lucky / easytier / 中文语言包
 
     # ---------- 14. 失败时上传配置诊断快照 ----------
     - name: 上传诊断快照
